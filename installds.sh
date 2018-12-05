@@ -42,9 +42,7 @@ sudo systemctl enable mysqld.service
 sudo systemctl start mysqld.service
 #extract system generated Mysql password
 oldpass=$( grep 'temporary.*root@localhost' /var/log/mysqld.log | tail -n 1 | sed 's/.*root@localhost: //' )
-#create sql file that
-# 1. reset Mysql password to temp value and create druid/superset/registry/streamline schemas and users
-# 2. sets passwords for druid/superset/registry/streamline users to ${db_password}
+
 cat << EOF > mysql-setup.sql
 ALTER USER 'root'@'localhost' IDENTIFIED BY 'Secur1ty!';
 uninstall plugin validate_password;
@@ -60,15 +58,13 @@ mysql -u root -p${db_password} -e 'show databases;'
 echo Installing Ambari
 
 export install_ambari_server=true
-#export java_provider=oracle
+
 curl -sSL https://raw.githubusercontent.com/abajwa-hw/ambari-bootstrap/master/ambari-bootstrap.sh | sudo -E sh
 sudo ambari-server setup --jdbc-db=mysql --jdbc-driver=/usr/share/java/mysql-connector-java.jar
 sudo ambari-server install-mpack --verbose --mpack=${mpack_url}
+
 # Hack to fix a current bug in Ambari Blueprints
 sudo sed -i.bak "s/\(^    total_sinks_count = \)0$/\11/" /var/lib/ambari-server/resources/stacks/HDP/2.0.6/services/stack_advisor.py
-
-#echo "Creating Storm View..."
-#curl -u admin:admin -H "X-Requested-By:ambari" -X POST -d '{"ViewInstanceInfo":{"instance_name":"Storm_View","label":"Storm View","visible":true,"icon_path":"","icon64_path":"","description":"storm view","properties":{"storm.host":"'${host}'","storm.port":"8744","storm.sslEnabled":"false"},"cluster_type":"NONE"}}' http://${host}:8080/api/v1/views/Storm_Monitoring/versions/0.1.0/instances/Storm_View
 
 #create demokitadmin user
 curl -iv -u admin:admin -H "X-Requested-By: blah" -X POST -d "{\"Users/user_name\":\"${service_user}\",\"Users/password\":\"${service_password}\",\"Users/active\":\"true\",\"Users/admin\":\"true\"}" http://localhost:8080/api/v1/users
@@ -77,7 +73,6 @@ echo "Updating admin password..."
 curl -iv -u admin:admin -H "X-Requested-By: blah" -X PUT -d "{ \"Users\": { \"user_name\": \"admin\", \"old_password\": \"admin\", \"password\": \"${ambari_password}\" }}" http://localhost:8080/api/v1/users/admin
 
 cd /tmp
-
 
 sudo ambari-server restart
 
@@ -95,7 +90,6 @@ curl -v -k -u admin:${ambari_password} -H "X-Requested-By:ambari" -X POST http:/
 {  "VersionDefinition": {   "version_url": "${hdf_vdf}" } }
 EOF
 
-#wget ${hdf_repo} -P /etc/yum.repos.d/
 
 sudo ambari-server restart
 
